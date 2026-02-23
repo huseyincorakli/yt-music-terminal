@@ -36,7 +36,7 @@ A beautiful terminal-based YouTube Music player for Linux.
 ## One-Line Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/yt-music-terminal/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/huseyincorakli/yt-music-terminal/main/install.sh | bash
 ```
 
 Or manually:

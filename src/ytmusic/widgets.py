@@ -160,7 +160,7 @@ class KeyBar(Static):
 
     def render(self) -> str:
         parts = [
-            f"[reverse #7b7bff] {k} [/reverse #7b7bff][dim #555577] {l} [/dim #555577]"
-            for k, l in self.KEYS
+            f"[reverse #7b7bff] {k} [/reverse #7b7bff][dim #555577] {label} [/dim #555577]"
+            for k, label in self.KEYS
         ]
         return " " + " ".join(parts)

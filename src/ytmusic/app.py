@@ -1,5 +1,4 @@
 import subprocess
-from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -207,7 +206,7 @@ class YTMusicApp(App):
                  "--get-title", "--get-id", "--flat-playlist", "--no-warnings"],
                 capture_output=True, text=True, timeout=30
             )
-            lines = [l.strip() for l in r.stdout.splitlines() if l.strip()]
+            lines = [line.strip() for line in r.stdout.splitlines() if line.strip()]
             tracks = [Track(lines[i], lines[i+1]) for i in range(0, len(lines)-1, 2)]
             self.call_from_thread(self._show_results, tracks)
         except Exception as e:

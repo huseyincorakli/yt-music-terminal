@@ -6,6 +6,8 @@
 
 set -euo pipefail
 
+REPO_URL="${REPO_URL:-https://github.com/huseyincorakli/yt-music-terminal.git}"
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Colors
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -92,21 +94,21 @@ main() {
     case "$DISTRO" in
         fedora)
             if has_command dnf; then
-                sudo dnf install -y mpv python3 || log_warn "Failed to install mpv (might already be installed)"
+                sudo dnf install -y mpv python3 git deno || log_warn "Failed to install mpv (might already be installed)"
             else
                 log_error "dnf not found. Please install mpv and python3 manually."
             fi
             ;;
         debian)
             if has_command apt; then
-                sudo apt update && sudo apt install -y mpv python3 python3-pip || log_warn "Failed to install some packages"
+                sudo apt update && sudo apt install -y mpv python3 python3-pip git deno || log_warn "Failed to install some packages"
             else
                 log_error "apt not found. Please install mpv and python3 manually."
             fi
             ;;
         arch)
             if has_command pacman; then
-                sudo pacman -Sy --noconfirm mpv python python-pip || log_warn "Failed to install some packages"
+                sudo pacman -Sy --noconfirm mpv python python-pip git deno || log_warn "Failed to install some packages"
             else
                 log_error "pacman not found. Please install mpv and python3 manually."
             fi
@@ -128,6 +130,16 @@ main() {
 
     # Get script directory (where main.py should be)
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Handle case when script is piped from curl (stdin)
+    # Check if we have the needed files, if not, clone the repo
+    if [[ ! -f "$SCRIPT_DIR/pyproject.toml" ]]; then
+        log_info "Downloading yt-music-terminal..."
+        SCRIPT_DIR="$HOME/ytmusic-install"
+        rm -rf "$SCRIPT_DIR"
+        git clone --depth 1 "$REPO_URL" "$SCRIPT_DIR"
+    fi
+    
     REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
 
     if [[ ! -f "$REQUIREMENTS" ]]; then
@@ -138,29 +150,31 @@ main() {
     # Try uv first, fall back to pip
     if has_command uv; then
         log_info "Using uv for Python package installation..."
-        uv pip install -r "$REQUIREMENTS" --system 2>/dev/null || \
-            uv pip install -r "$REQUIREMENTS" --user 2>/dev/null || \
+        uv pip install -r "$REQUIREMENTS" --system 2>&1 || \
+            uv pip install -r "$REQUIREMENTS" --user 2>&1 || \
             log_warn "uv failed, trying pip..."
     fi
 
     if ! has_command textual 2>/dev/null; then
         if has_command pip; then
             log_info "Using pip for Python package installation..."
-            pip install --user -r "$REQUIREMENTS" 2>/dev/null || \
-                pip3 install --user -r "$REQUIREMENTS" 2>/dev/null || \
-                log_error "Failed to install Python packages"
+            if ! pip install --user --break-system-packages -r "$REQUIREMENTS"; then
+                log_error "pip install failed"
+                if ! pip3 install --user --break-system-packages -r "$REQUIREMENTS"; then
+                    log_error "Failed to install Python packages"
+                    exit 1
+                fi
+            fi
         else
             log_error "pip not found. Please install Python packages manually."
             exit 1
         fi
     fi
 
-    # Install yt-dlp separately (it updates frequently)
-    if ! has_command yt-dlp; then
-        log_info "Installing yt-dlp..."
-        pip install --user yt-dlp 2>/dev/null || pip3 install --user yt-dlp 2>/dev/null || \
-            log_warn "Failed to install yt-dlp"
-    fi
+    # Install yt-dlp (updates frequently, always install latest)
+    log_info "Installing/updating yt-dlp..."
+    pip install --user --break-system-packages -U yt-dlp 2>&1 || pip3 install --user --break-system-packages -U yt-dlp 2>&1 || \
+        log_warn "Failed to install yt-dlp"
 
     # ═══════════════════════════════════════════════════════════════════════════════
     #  Install ytmusic Package (editable mode)
@@ -174,8 +188,12 @@ main() {
 
     # Install package in editable mode
     cd "$SCRIPT_DIR"
-    pip install -e . --quiet 2>/dev/null || pip install -e . --user --quiet 2>/dev/null || \
-        log_warn "Failed to install package, falling back to direct execution"
+    if ! pip install --user --break-system-packages -e . 2>&1; then
+        if ! pip install --user --break-system-packages -e . 2>&1; then
+            log_error "Failed to install ytmusic package"
+            exit 1
+        fi
+    fi
 
     # Also copy main.py for direct execution
     mkdir -p "$HOME/.local/bin"
