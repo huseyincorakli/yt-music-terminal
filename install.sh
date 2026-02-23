@@ -189,22 +189,29 @@ main() {
     fi
 
     # ═══════════════════════════════════════════════════════════════════════════════
-    #  Install ytmusic Package (editable mode)
+    #  Copy source files
     # ═══════════════════════════════════════════════════════════════════════════════
-    log_info "Installing ytmusic package..."
+    log_info "Installing ytmusic..."
 
-    if [[ ! -d "${SCRIPT_DIR}/src/ytmusic" ]]; then
-        log_error "src/ytmusic not found in ${SCRIPT_DIR}"
+    # Use the cloned repo location
+    if [[ -d "$HOME/ytmusic-install" ]]; then
+        SOURCE_DIR="$HOME/ytmusic-install"
+    else
+        SOURCE_DIR="$SCRIPT_DIR"
+    fi
+
+    if [[ ! -d "${SOURCE_DIR}/src/ytmusic" ]]; then
+        log_error "src/ytmusic not found in ${SOURCE_DIR}"
         exit 1
     fi
 
     # Copy source files to a fixed location
     INSTALL_DIR="$HOME/.local/share/ytmusic"
     mkdir -p "$INSTALL_DIR"
-    cp -r "${SCRIPT_DIR}/src" "$INSTALL_DIR/"
-    cp "${SCRIPT_DIR}/main.py" "$INSTALL_DIR/"
+    cp -r "${SOURCE_DIR}/src" "$INSTALL_DIR/"
+    cp "${SOURCE_DIR}/main.py" "$INSTALL_DIR/"
     
-    # Create wrapper script that sets PYTHONPATH
+    # Create wrapper script
     mkdir -p "$HOME/.local/bin"
     cat > "$HOME/.local/bin/ytmusic" << WRAPPER
 #!/bin/bash
