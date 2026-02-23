@@ -113,13 +113,6 @@ main() {
                 log_error "apt not found. Please install mpv and python3 manually."
             fi
             ;;
-        arch)
-            if has_command pacman; then
-                sudo pacman -Sy --noconfirm mpv python python-pip git deno || log_warn "Failed to install some packages"
-            else
-                log_error "pacman not found. Please install mpv and python3 manually."
-            fi
-            ;;
         *)
             log_warn "Unknown distribution. Please install mpv and python3 manually."
             ;;
