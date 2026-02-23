@@ -19,37 +19,37 @@ error() { echo -e "${RED}✗${NC} $*" >&2; exit 1; }
 REPO_URL="https://github.com/huseyincorakli/yt-music-terminal"
 
 check_mpv() {
-    if command -v mpv &>/dev/null; then
+    if command -v mpv &>/dev/null && command -v git &>/dev/null; then
         return 0
     fi
 
-    warn "mpv bulunamadı."
+    warn "Eksik bağımlılıklar tespit edildi."
     echo ""
-    echo "  Fedora/RHEL : sudo dnf install mpv"
-    echo "  Ubuntu/Debian: sudo apt install mpv"
-    echo "  Arch         : sudo pacman -S mpv"
-    echo "  macOS        : brew install mpv"
+    echo "  Fedora/RHEL : sudo dnf install mpv git"
+    echo "  Ubuntu/Debian: sudo apt install mpv git"
+    echo "  Arch         : sudo pacman -S mpv git"
+    echo "  macOS        : brew install mpv git"
     echo ""
-    read -r -p "mpv'yi otomatik kurmamı ister misiniz? [e/H] " reply
+    read -r -p "Otomatik kurmamı ister misiniz? [e/H] " reply
     case "$reply" in
         [eEyY]*)
             install_mpv
             ;;
         *)
-            error "mpv olmadan devam edilemiyor."
+            error "Gerekli paketler yok."
             ;;
     esac
 }
 
 install_mpv() {
     if command -v dnf &>/dev/null; then
-        sudo dnf install -y mpv
+        sudo dnf install -y mpv git
     elif command -v apt &>/dev/null; then
-        sudo apt-get install -y mpv
+        sudo apt-get install -y mpv git
     elif command -v pacman &>/dev/null; then
-        sudo pacman -S --noconfirm mpv
+        sudo pacman -S --noconfirm mpv git
     elif command -v brew &>/dev/null; then
-        brew install mpv
+        brew install mpv git
     else
         error "Paket yöneticisi bulunamadı."
     fi
