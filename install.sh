@@ -147,34 +147,46 @@ main() {
         exit 1
     fi
 
-    # Try uv first, fall back to pip
+    # Install uv (modern, fast Python package manager)
+    if ! has_command uv; then
+        log_info "Installing uv package manager..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh 2>&1 || \
+            log_warn "Failed to install uv"
+    fi
+
+    # Source uv if installed but not in PATH
+    if [[ -f "$HOME/.local/bin/uv" ]]; then
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+
+    # Install Python packages using uv (creates virtualenv automatically)
     if has_command uv; then
-        log_info "Using uv for Python package installation..."
-        uv pip install -r "$REQUIREMENTS" --system 2>&1 || \
-            uv pip install -r "$REQUIREMENTS" --user 2>&1 || \
+        log_info "Installing Python packages with uv..."
+        # Add to PATH temporarily for this session
+        export PATH="$HOME/.local/bin:$PATH"
+        
+        # Create venv and install packages
+        cd "$SCRIPT_DIR"
+        uv venv .venv 2>/dev/null || true
+        source .venv/bin/activate 2>/dev/null || true
+        uv pip install textual yt-dlp 2>&1 || \
+            (deactivate 2>/dev/null; rm -rf .venv; uv venv .venv && source .venv/bin/activate && uv pip install textual yt-dlp) 2>&1 || \
             log_warn "uv failed, trying pip..."
-    fi
-
-    if ! has_command textual 2>/dev/null; then
-        if has_command pip; then
-            log_info "Using pip for Python package installation..."
-            if ! pip install --user --break-system-packages -r "$REQUIREMENTS"; then
-                log_error "pip install failed"
-                if ! pip3 install --user --break-system-packages -r "$REQUIREMENTS"; then
-                    log_error "Failed to install Python packages"
-                    exit 1
-                fi
-            fi
-        else
-            log_error "pip not found. Please install Python packages manually."
-            exit 1
+        
+        # If uv failed, use pip as fallback
+        if ! has_command textual 2>/dev/null; then
+            log_info "Falling back to pip..."
+            pip install --user --break-system-packages textual yt-dlp 2>&1 || \
+                pip3 install --user --break-system-packages textual yt-dlp 2>&1 || \
+                log_error "Failed to install Python packages"
         fi
+    else
+        # No uv, use pip
+        log_info "Installing Python packages with pip..."
+        pip install --user --break-system-packages textual yt-dlp 2>&1 || \
+            pip3 install --user --break-system-packages textual yt-dlp 2>&1 || \
+            log_error "Failed to install Python packages"
     fi
-
-    # Install yt-dlp (updates frequently, always install latest)
-    log_info "Installing/updating yt-dlp..."
-    pip install --user --break-system-packages -U yt-dlp 2>&1 || pip3 install --user --break-system-packages -U yt-dlp 2>&1 || \
-        log_warn "Failed to install yt-dlp"
 
     # ═══════════════════════════════════════════════════════════════════════════════
     #  Install ytmusic Package (editable mode)
@@ -186,18 +198,16 @@ main() {
         exit 1
     fi
 
-    # Install package in editable mode
-    cd "$SCRIPT_DIR"
-    if ! pip install --user --break-system-packages -e . 2>&1; then
-        if ! pip install --user --break-system-packages -e . 2>&1; then
-            log_error "Failed to install ytmusic package"
-            exit 1
-        fi
-    fi
-
-    # Also copy main.py for direct execution
+    # Copy main.py and create wrapper with PYTHONPATH
     mkdir -p "$HOME/.local/bin"
-    cp "${SCRIPT_DIR}/main.py" "$HOME/.local/bin/ytmusic"
+    
+    # Create wrapper script that sets PYTHONPATH
+    cat > "$HOME/.local/bin/ytmusic" << 'WRAPPER'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PYTHONPATH="$SCRIPT_DIR/src:$PYTHONPATH"
+exec python3 "$SCRIPT_DIR/main.py" "$@"
+WRAPPER
     chmod +x "$HOME/.local/bin/ytmusic"
 
     # ═══════════════════════════════════════════════════════════════════════════════
