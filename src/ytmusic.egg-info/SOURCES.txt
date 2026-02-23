@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+src/ytmusic/__init__.py
+src/ytmusic/app.py
+src/ytmusic/models.py
+src/ytmusic/player.py
+src/ytmusic/widgets.py
+src/ytmusic.egg-info/PKG-INFO
+src/ytmusic.egg-info/SOURCES.txt
+src/ytmusic.egg-info/dependency_links.txt
+src/ytmusic.egg-info/entry_points.txt
+src/ytmusic.egg-info/requires.txt
+src/ytmusic.egg-info/top_level.txt

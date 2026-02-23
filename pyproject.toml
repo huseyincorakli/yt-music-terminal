@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ytmusic"
+version = "0.1.0"
+description = "Terminal-based YouTube Music player"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "Your Name", email = "you@example.com"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "textual>=0.60.0",
+    "yt-dlp>=2024.1.0",
+]
+
+[project.scripts]
+ytmusic = "ytmusic.app:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/yt-music-terminal"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ytmusic*"]
