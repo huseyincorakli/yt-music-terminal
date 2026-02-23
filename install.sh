@@ -94,14 +94,21 @@ main() {
     case "$DISTRO" in
         fedora)
             if has_command dnf; then
-                sudo dnf install -y mpv python3 git deno || log_warn "Failed to install mpv (might already be installed)"
+                sudo dnf install -y git mpv python3 || log_warn "Failed to install packages"
             else
                 log_error "dnf not found. Please install mpv and python3 manually."
             fi
             ;;
+        arch)
+            if has_command pacman; then
+                sudo pacman -Sy --noconfirm git mpv python python-pip || log_warn "Failed to install some packages"
+            else
+                log_error "pacman not found. Please install mpv and python3 manually."
+            fi
+            ;;
         debian)
             if has_command apt; then
-                sudo apt update && sudo apt install -y mpv python3 python3-pip git deno || log_warn "Failed to install some packages"
+                sudo apt update && sudo apt install -y git mpv python3 python3-pip || log_warn "Failed to install some packages"
             else
                 log_error "apt not found. Please install mpv and python3 manually."
             fi
