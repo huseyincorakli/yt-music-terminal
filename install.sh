@@ -198,15 +198,17 @@ main() {
         exit 1
     fi
 
-    # Copy main.py and create wrapper with PYTHONPATH
-    mkdir -p "$HOME/.local/bin"
+    # Copy source files to a fixed location
+    INSTALL_DIR="$HOME/.local/share/ytmusic"
+    mkdir -p "$INSTALL_DIR"
+    cp -r "${SCRIPT_DIR}/src" "$INSTALL_DIR/"
+    cp "${SCRIPT_DIR}/main.py" "$INSTALL_DIR/"
     
     # Create wrapper script that sets PYTHONPATH
-    cat > "$HOME/.local/bin/ytmusic" << 'WRAPPER'
+    mkdir -p "$HOME/.local/bin"
+    cat > "$HOME/.local/bin/ytmusic" << WRAPPER
 #!/bin/bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export PYTHONPATH="$SCRIPT_DIR/src:$PYTHONPATH"
-exec python3 "$SCRIPT_DIR/main.py" "$@"
+exec python3 "$HOME/.local/share/ytmusic/main.py" "\$@"
 WRAPPER
     chmod +x "$HOME/.local/bin/ytmusic"
 
