@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ytmusic = "ytmusic.app:main"
+ytmusic = "ytmusic.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/yt-music-terminal"
