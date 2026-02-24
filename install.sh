@@ -23,20 +23,20 @@ check_mpv() {
         return 0
     fi
 
-    warn "Eksik bağımlılıklar tespit edildi."
+    warn "Missing dependencies detected."
     echo ""
     echo "  Fedora/RHEL : sudo dnf install mpv git"
     echo "  Ubuntu/Debian: sudo apt install mpv git"
     echo "  Arch         : sudo pacman -S mpv git"
     echo "  macOS        : brew install mpv git"
     echo ""
-    read -r -p "Otomatik kurmamı ister misiniz? [e/H] " reply
+    read -r -p "Install automatically? [y/N] " reply
     case "$reply" in
-        [eEyY]*)
+        [yY]*)
             install_mpv
             ;;
         *)
-            error "Gerekli paketler yok."
+            error "Required packages not found."
             ;;
     esac
 }
@@ -51,7 +51,7 @@ install_mpv() {
     elif command -v brew &>/dev/null; then
         brew install mpv git
     else
-        error "Paket yöneticisi bulunamadı."
+        error "Package manager not found."
     fi
 }
 
@@ -59,30 +59,30 @@ ensure_uv() {
     if command -v uv &>/dev/null; then
         return 0
     fi
-    info "uv kuruluyor..."
+    info "Installing uv..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
     export PATH="$HOME/.local/bin:$PATH"
-    command -v uv &>/dev/null || error "uv kurulumu başarısız."
+    command -v uv &>/dev/null || error "uv installation failed."
 }
 
 install_ytmusic() {
-    info "ytmusic kuruluyor..."
+    info "Installing ytmusic..."
     export PATH="$HOME/.local/bin:$PATH"
     uv tool install "git+${REPO_URL}" --force
 }
 
 check_path() {
     if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-        warn "~/.local/bin PATH'inizde değil."
+        warn "~/.local/bin not in your PATH."
         echo ""
-        echo "  Aşağıdaki satırı shell config dosyanıza ekleyin:"
+        echo "  Add this to your shell config:"
         echo ""
         echo '    export PATH="$HOME/.local/bin:$PATH"'
         echo ""
     fi
 }
 
-echo -e "\n${BOLD}▶ YT Music TUI Kurulumu${NC}\n"
+echo -e "\n${BOLD}▶ YT Music TUI Installation${NC}\n"
 
 check_mpv
 ensure_uv
@@ -90,5 +90,5 @@ install_ytmusic
 check_path
 
 echo ""
-echo -e "${GREEN}✓ Kurulum tamamlandı!${NC} Çalıştırmak için: ${BOLD}ytmusic${NC}"
+echo -e "${GREEN}✓ Installation complete!${NC} Run with: ${BOLD}ytmusic${NC}"
 echo ""

@@ -1,148 +1,30 @@
-import subprocess
+import asyncio
+import uuid
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual import work, on
-from textual.widgets import Input, Label, ListView, Static
+from textual.widgets import Input, Label, ListView, Static, Button
 
-from .models import Track
+from .config import SEARCH_RESULTS
+from .models import Playlist, Track
 from .player import Player
-from .widgets import TrackListItem, QueueItem, NowPlayingBar, KeyBar
+from .storage import load_playlists, save_playlists
+from .ui import (
+    PlaylistListItem,
+    PlaylistTrackItem,
+    TrackListItem,
+    QueueItem,
+    NowPlayingBar,
+    KeyBar,
+)
 
 
 class YTMusicApp(App):
     """YT Music Terminal Player."""
-    
-    CSS = """
-    Screen { background: #06060f; }
 
-    #root { layout: vertical; height: 100%; }
-
-    /* HEADER */
-    #header {
-        height: 3;
-        background: #0c0c1e;
-        border-bottom: tall #1e1e40;
-        layout: horizontal;
-        align: left middle;
-        padding: 0 2;
-    }
-    #logo {
-        width: auto;
-        color: #7b7bff;
-        text-style: bold;
-        margin-right: 3;
-    }
-    #search-input {
-        width: 1fr; height: 1;
-        border: none;
-        background: #10101e;
-        color: #e0e0ff;
-        padding: 0 2;
-        margin: 1 0;
-    }
-    #search-input:focus {
-        border: none;
-        background: #18183a;
-        color: #ffffff;
-    }
-
-    /* MAIN */
-    #main { layout: horizontal; height: 1fr; }
-
-    /* RESULTS */
-    #results-panel { width: 2fr; border-right: tall #161630; }
-    #results-header {
-        height: 2;
-        background: #0c0c1e;
-        color: #44446a;
-        padding: 0 2;
-        content-align: left middle;
-        border-bottom: tall #131330;
-    }
-    #results-list {
-        height: 1fr;
-        background: #06060f;
-        scrollbar-color: #1e1e40;
-        scrollbar-background: #06060f;
-    }
-    #results-list > ListItem {
-        background: #06060f; height: 2; padding: 0;
-    }
-    #results-list > ListItem:hover { background: #0e0e20; }
-    #results-list > ListItem.--highlight {
-        background: #10102a;
-        border-left: tall #7b7bff;
-    }
-    #results-list Label {
-        color: #7070a0; height: 2; content-align: left middle;
-    }
-    #results-list > ListItem.--highlight Label {
-        color: #d0d0ff; text-style: bold;
-    }
-
-    /* QUEUE */
-    #queue-panel { width: 1fr; background: #050510; }
-    #queue-header {
-        height: 2;
-        background: #0c0c1e;
-        color: #44446a;
-        padding: 0 2;
-        content-align: left middle;
-        border-bottom: tall #131330;
-    }
-    #queue-list {
-        height: 1fr;
-        background: #050510;
-        scrollbar-color: #131328;
-        scrollbar-background: #050510;
-    }
-    #queue-list > ListItem {
-        background: #050510; height: 2; padding: 0;
-    }
-    #queue-list > ListItem:hover { background: #0c0c22; }
-    #queue-list > ListItem.--highlight {
-        background: #0e0e28;
-        border-left: tall #4dff88;
-    }
-    #queue-list Label {
-        color: #484870; height: 2; content-align: left middle;
-    }
-    #queue-list > ListItem.--highlight Label {
-        color: #4dff88; text-style: bold;
-    }
-
-    /* NOW PLAYING */
-    #now-playing {
-        height: 6;
-        background: #0a0a1e;
-        border-top: tall #1e1e45;
-        layout: vertical;
-        padding: 1 2;
-    }
-    #np-track { height: 2; content-align: left middle; }
-    #np-bar   { height: 2; content-align: left middle; }
-
-    /* KEY BAR */
-    #keybar {
-        height: 2;
-        background: #07070f;
-        border-top: tall #131328;
-        content-align: left middle;
-        padding: 0 2;
-    }
-
-    /* LOADING */
-    #loading {
-        display: none;
-        height: 1fr;
-        content-align: center middle;
-        color: #5555cc;
-        text-style: italic;
-    }
-    #loading.visible { display: block; }
-    """
+    CSS_PATH = "app.tcss"
 
     BINDINGS = [
         Binding("/", "focus_search", "Search", show=False),
@@ -150,24 +32,36 @@ class YTMusicApp(App):
         Binding("n", "next_track", "Next", show=False),
         Binding("a", "add_to_queue", "Queue", show=False),
         Binding("d", "remove_from_queue", "Dequeue", show=False),
-        Binding("escape", "focus_results", "Results", show=False),
+        Binding("l", "toggle_lists", "Lists", show=False),
+        Binding("e", "add_to_default", "AddDef", show=False),
+        Binding("y", "add_to_playlist", "AddList", show=False),
+        Binding("x", "delete_playlist", "Delete", show=False),
+        Binding("escape", "handle_escape", "Back", show=False),
         Binding("q", "quit", "Quit", show=False),
     ]
 
     def __init__(self):
         super().__init__()
-        self.player = Player()
+        self.player: Player = Player()
         self.player.on_finish = self._on_track_finish
         self.results: list[Track] = []
         self.queue: list[Track] = []
-        self.queue_index = 0
-        self._finishing = False
+        self.queue_index: int = 0
+        self._finishing: bool = False
+
+        self.playlists: dict[str, Playlist] = load_playlists()
+        self._list_mode: str = "normal"
+        self._current_playlist_id: str | None = None
+        self._pending_delete_id: str | None = None
 
     def compose(self) -> ComposeResult:
         with Vertical(id="root"):
             with Horizontal(id="header"):
                 yield Label("▶ YT MUSIC", id="logo")
-                yield Input(placeholder="  Search for a song, artist or album...", id="search-input")
+                yield Input(
+                    placeholder="  Search for a song, artist or album...",
+                    id="search-input",
+                )
             with Horizontal(id="main"):
                 with Vertical(id="results-panel"):
                     yield Static("  Results", id="results-header")
@@ -176,11 +70,229 @@ class YTMusicApp(App):
                 with Vertical(id="queue-panel"):
                     yield Static("  ♫  Queue", id="queue-header")
                     yield ListView(id="queue-list")
+                with Vertical(id="playlist-panel"):
+                    yield Static("  🎵  Playlists", id="playlist-header")
+                    yield ListView(id="playlist-list")
+                    with Vertical(id="playlist-input-container", classes="hidden"):
+                        yield Input(
+                            placeholder="  Playlist name...", id="playlist-name-input"
+                        )
+                        with Horizontal(id="playlist-input-buttons"):
+                            yield Button(
+                                "Create", id="playlist-create-btn", variant="primary"
+                            )
+                            yield Button("Cancel", id="playlist-cancel-btn")
             yield NowPlayingBar(self.player, id="now-playing")
             yield KeyBar(id="keybar")
 
     def on_mount(self):
         self.query_one("#search-input").focus()
+        self._show_playlist_panel(False)
+        self._redraw_playlists()
+        self.query_one("#playlist-input-container").display = False
+
+    # ── Playlist ─────────────────────────────────
+
+    def _show_playlist_panel(self, show: bool):
+        panel = self.query_one("#playlist-panel")
+        panel.display = show
+
+    def _redraw_playlists(self):
+        pl = self.query_one("#playlist-list", ListView)
+        pl.clear()
+        for playlist in self.playlists.values():
+            pl.append(PlaylistListItem(playlist))
+
+    def _redraw_playlist_tracks(self, playlist_id: str):
+        pl = self.query_one("#playlist-list", ListView)
+        playlist = self.playlists.get(playlist_id)
+        if not playlist:
+            return
+        pl.clear()
+        current_id = self.player.current.video_id if self.player.current else None
+        for i, track in enumerate(playlist.tracks):
+            pl.append(
+                PlaylistTrackItem(track, i, playing=(track.video_id == current_id))
+            )
+
+    def action_toggle_lists(self):
+        if self._list_mode == "normal":
+            self._list_mode = "playlists"
+            self._current_playlist_id = None
+            self._show_playlist_panel(True)
+            self._hide_results_queue(True)
+            self._redraw_playlists()
+            self.query_one("#playlist-header", Static).update("  🎵  Listeler")
+            pl = self.query_one("#playlist-list", ListView)
+            if len(pl) > 0:
+                pl.focus()
+            self._update_keybar()
+        elif self._list_mode == "playlists":
+            if self._current_playlist_id:
+                self._list_mode = "playlists"
+                self._current_playlist_id = None
+                self._redraw_playlists()
+                self.query_one("#playlist-header", Static).update("  🎵  Listeler")
+            else:
+                self._exit_list_mode()
+        elif self._list_mode == "playlist_tracks":
+            self._list_mode = "playlists"
+            self._current_playlist_id = None
+            self._redraw_playlists()
+            self.query_one("#playlist-header", Static).update("  🎵  Listeler")
+            pl = self.query_one("#playlist-list", ListView)
+            if len(pl) > 0:
+                pl.focus()
+            self._update_keybar()
+
+    def _exit_list_mode(self):
+        self._list_mode = "normal"
+        self._current_playlist_id = None
+        self._show_playlist_panel(False)
+        self._hide_results_queue(False)
+        self._update_keybar()
+        self.query_one("#search-input").focus()
+
+    def _update_keybar(self):
+        kb = self.query_one("#keybar", KeyBar)
+        kb._mode = self._list_mode
+        kb.refresh()
+
+    def _hide_results_queue(self, hide: bool):
+        self.query_one("#results-panel").display = not hide
+        self.query_one("#queue-panel").display = not hide
+
+    def action_handle_escape(self):
+        if self._list_mode != "normal":
+            self.action_toggle_lists()
+        else:
+            self.action_focus_results()
+
+    @on(ListView.Selected, "#playlist-list")
+    def on_playlist_selected(self, event: ListView.Selected):
+        if isinstance(event.item, PlaylistListItem):
+            playlist = event.item.playlist
+            self._list_mode = "playlist_tracks"
+            self._current_playlist_id = playlist.id
+            self._redraw_playlist_tracks(playlist.id)
+            self.query_one("#playlist-header", Static).update(f"  🎵  {playlist.name}")
+            self._update_keybar()
+        elif isinstance(event.item, PlaylistTrackItem):
+            if self._list_mode == "playlist_tracks" and self._current_playlist_id:
+                self.queue_index = event.item.index
+                self._play(event.item.track, from_playlist=True)
+
+    def action_add_to_default(self):
+        default_id = None
+        for pid, pl in self.playlists.items():
+            if pl.is_default:
+                default_id = pid
+                break
+        if default_id is None:
+            default_id = "default"
+        self._add_to_playlist(default_id)
+
+    def action_new_playlist(self):
+        if self._list_mode != "playlists":
+            return
+        self._show_playlist_input()
+
+    def _show_playlist_input(self):
+        input_container = self.query_one("#playlist-input-container")
+        input_field = self.query_one("#playlist-name-input", Input)
+        input_container.display = True
+        input_field.focus()
+
+    def _hide_playlist_input(self):
+        input_container = self.query_one("#playlist-input-container")
+        input_field = self.query_one("#playlist-name-input", Input)
+        input_field.value = ""
+        input_container.display = False
+
+    @on(Input.Submitted, "#playlist-name-input")
+    def _on_playlist_name_submit(self, event: Input.Submitted):
+        name = event.value.strip()
+        if name:
+            new_id = str(uuid.uuid4())[:8]
+            self.playlists[new_id] = Playlist(id=new_id, name=name, tracks=[])
+            save_playlists(self.playlists, self._get_default_id())
+            self._redraw_playlists()
+            self.notify(f"Created: {name}", timeout=2)
+        self._hide_playlist_input()
+
+    @on(Button.Pressed, "#playlist-cancel-btn")
+    def _on_cancel_playlist(self):
+        self._hide_playlist_input()
+
+    @on(Button.Pressed, "#playlist-create-btn")
+    def _on_create_playlist(self):
+        input_field = self.query_one("#playlist-name-input", Input)
+        name = input_field.value.strip()
+        if name:
+            new_id = str(uuid.uuid4())[:8]
+            self.playlists[new_id] = Playlist(id=new_id, name=name, tracks=[])
+            save_playlists(self.playlists, self._get_default_id())
+            self._redraw_playlists()
+            self.notify(f"Created: {name}", timeout=2)
+        self._hide_playlist_input()
+
+    def action_add_to_playlist(self):
+        self.notify("Select a playlist first (press y in list mode)", timeout=2)
+
+    def action_delete_playlist(self):
+        if self._list_mode != "playlists":
+            return
+        pl = self.query_one("#playlist-list", ListView)
+        if pl.highlighted_child is None:
+            return
+        item = pl.highlighted_child
+        if not isinstance(item, PlaylistListItem):
+            return
+        playlist = item.playlist
+        if playlist.is_default:
+            self.notify(
+                "Cannot delete default playlist!", severity="warning", timeout=2
+            )
+            return
+        if self._pending_delete_id == playlist.id:
+            del self.playlists[playlist.id]
+            save_playlists(self.playlists, self._get_default_id())
+            self._redraw_playlists()
+            self._pending_delete_id = None
+            self.notify(f"'{playlist.name}' deleted", timeout=2)
+        else:
+            self._pending_delete_id = playlist.id
+            self.notify(
+                f"'{playlist.name}' will be deleted! Press 'x' again to confirm",
+                timeout=3,
+            )
+
+    def action_confirm_delete(self):
+        pass
+
+    def _add_to_playlist(self, playlist_id: str):
+        rl = self.query_one("#results-list", ListView)
+        if rl.highlighted_child is None:
+            return
+        item = rl.highlighted_child
+        if not isinstance(item, TrackListItem):
+            return
+        track = item.track
+        playlist = self.playlists.get(playlist_id)
+        if not playlist:
+            return
+        if any(t.video_id == track.video_id for t in playlist.tracks):
+            self.notify("Already in playlist", severity="warning", timeout=2)
+            return
+        playlist.tracks.append(track)
+        save_playlists(self.playlists, self._get_default_id())
+        self.notify(f"Added: {track.title[:30]}", timeout=2)
+
+    def _get_default_id(self) -> str:
+        for pid, pl in self.playlists.items():
+            if pl.is_default:
+                return pid
+        return "default"
 
     # ── Search ──────────────────────────────────
 
@@ -198,19 +310,28 @@ class YTMusicApp(App):
         if query:
             await self._do_search(query)
 
-    @work(exclusive=True, thread=True)
-    def _search_worker(self, query: str):
+    @work(exclusive=True)
+    async def _search_worker(self, query: str):
         try:
-            r = subprocess.run(
-                ["yt-dlp", f"ytsearch10:{query}",
-                 "--get-title", "--get-id", "--flat-playlist", "--no-warnings"],
-                capture_output=True, text=True, timeout=30
+            proc = await asyncio.create_subprocess_exec(
+                "yt-dlp",
+                f"ytsearch10:{query}",
+                "--get-title",
+                "--get-id",
+                "--flat-playlist",
+                "--no-warnings",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            lines = [line.strip() for line in r.stdout.splitlines() if line.strip()]
-            tracks = [Track(lines[i], lines[i+1]) for i in range(0, len(lines)-1, 2)]
-            self.call_from_thread(self._show_results, tracks)
+            stdout, _ = await proc.communicate()
+            output = stdout.decode()
+            lines = [line.strip() for line in output.splitlines() if line.strip()]
+            tracks = [
+                Track(lines[i], lines[i + 1]) for i in range(0, len(lines) - 1, 2)
+            ]
+            self._show_results(tracks)
         except Exception as e:
-            self.call_from_thread(self._show_error, str(e))
+            self._show_error(str(e))
 
     async def _do_search(self, query: str):
         loading = self.query_one("#loading", Static)
@@ -220,7 +341,9 @@ class YTMusicApp(App):
         rl.clear()
         rl.display = False
         self._search_worker(query)
-        self.query_one("#results-header", Static).update(f'  Results  [dim]— {query}[/dim]')
+        self.query_one("#results-header", Static).update(
+            f"  Results  [dim]— {query}[/dim]"
+        )
 
     def _show_results(self, tracks: list[Track]):
         self.results = tracks
@@ -258,13 +381,16 @@ class YTMusicApp(App):
             self.queue_index = event.item.index
             self._play(self.queue[self.queue_index])
 
-    def _play(self, track: Track):
+    def _play(self, track: Track, from_playlist: bool = False):
         self._finishing = False
         self.player.play(track)
         bar = self.query_one("#now-playing", NowPlayingBar)
         bar.track = track
         bar.paused = False
-        self._redraw_queue()
+        if not from_playlist:
+            self._redraw_queue()
+        if self._list_mode == "playlist_tracks" and self._current_playlist_id:
+            self._redraw_playlist_tracks(self._current_playlist_id)
 
     def action_toggle_pause(self):
         if self.player.is_playing or self.player.is_paused:
@@ -273,18 +399,35 @@ class YTMusicApp(App):
             bar.paused = self.player.is_paused
 
     def action_next_track(self):
-        if not self.queue:
+        if self._list_mode == "playlists":
+            self._show_playlist_input()
+        elif self._list_mode == "playlist_tracks" and self._current_playlist_id:
+            playlist = self.playlists.get(self._current_playlist_id)
+            if not playlist or not playlist.tracks:
+                return
+            self.queue_index = (self.queue_index + 1) % len(playlist.tracks)
+            self._play(playlist.tracks[self.queue_index], from_playlist=True)
+        elif not self.queue:
             return
-        self.queue_index = (self.queue_index + 1) % len(self.queue)
-        self._play(self.queue[self.queue_index])
+        else:
+            self.queue_index = (self.queue_index + 1) % len(self.queue)
+            self._play(self.queue[self.queue_index])
 
     def _on_track_finish(self):
-        if not self.queue or self._finishing:
+        if self._list_mode == "playlist_tracks" and self._current_playlist_id:
+            playlist = self.playlists.get(self._current_playlist_id)
+            if not playlist or not playlist.tracks or self._finishing:
+                return
+            self._finishing = True
+            self.queue_index = (self.queue_index + 1) % len(playlist.tracks)
+            self.call_from_thread(self._play, playlist.tracks[self.queue_index], True)
+        elif not self.queue or self._finishing:
             return
-        self._finishing = True
-        next_index = (self.queue_index + 1) % len(self.queue)
-        self.queue_index = next_index
-        self.call_from_thread(self._play, self.queue[self.queue_index])
+        else:
+            self._finishing = True
+            next_index = (self.queue_index + 1) % len(self.queue)
+            self.queue_index = next_index
+            self.call_from_thread(self._play, self.queue[self.queue_index])
 
     # ── Queue ────────────────────────────────────
 
@@ -304,18 +447,35 @@ class YTMusicApp(App):
         self.notify(f"Added: {track.title[:40]}", timeout=2)
 
     def action_remove_from_queue(self):
-        ql = self.query_one("#queue-list", ListView)
-        if ql.highlighted_child is None:
-            return
-        item = ql.highlighted_child
-        if not isinstance(item, QueueItem):
-            return
-        idx = item.index
-        if 0 <= idx < len(self.queue):
-            del self.queue[idx]
-            if self.queue_index >= len(self.queue):
-                self.queue_index = max(0, len(self.queue) - 1)
-            self._redraw_queue()
+        if self._list_mode == "playlist_tracks" and self._current_playlist_id:
+            pl = self.query_one("#playlist-list", ListView)
+            if pl.highlighted_child is None:
+                return
+            item = pl.highlighted_child
+            if not isinstance(item, PlaylistTrackItem):
+                return
+            playlist = self.playlists.get(self._current_playlist_id)
+            if not playlist:
+                return
+            idx = item.index
+            if 0 <= idx < len(playlist.tracks):
+                del playlist.tracks[idx]
+                save_playlists(self.playlists, self._get_default_id())
+                self._redraw_playlist_tracks(self._current_playlist_id)
+                self.notify("Track removed from playlist", timeout=2)
+        else:
+            ql = self.query_one("#queue-list", ListView)
+            if ql.highlighted_child is None:
+                return
+            item = ql.highlighted_child
+            if not isinstance(item, QueueItem):
+                return
+            idx = item.index
+            if 0 <= idx < len(self.queue):
+                del self.queue[idx]
+                if self.queue_index >= len(self.queue):
+                    self.queue_index = max(0, len(self.queue) - 1)
+                self._redraw_queue()
 
     def _redraw_queue(self):
         ql = self.query_one("#queue-list", ListView)
@@ -325,10 +485,13 @@ class YTMusicApp(App):
             ql.append(QueueItem(t, i, playing=(t.video_id == current_id)))
         n = len(self.queue)
         self.query_one("#queue-header", Static).update(
-            f"  ♫  Queue  [dim]— {n} track{'s' if n != 1 else ''}[/dim]" if n else "  ♫  Queue"
+            f"  ♫  Queue  [dim]— {n} track{'s' if n != 1 else ''}[/dim]"
+            if n
+            else "  ♫  Queue"
         )
 
     def on_unmount(self):
+        save_playlists(self.playlists, self._get_default_id())
         self.player.stop()
 
 

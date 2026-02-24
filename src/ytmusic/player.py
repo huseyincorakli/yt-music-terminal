@@ -4,23 +4,33 @@ import socket
 import subprocess
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Callable
 
+from .config import (
+    MPV_SOCKET,
+    SOCKET_TIMEOUT,
+    THREAD_POOL_WORKERS,
+    MPV_VOLUME,
+    MPV_NO_VIDEO,
+    MPV_REALLY_QUIET,
+    MPV_TERM_OSD,
+)
 from .models import Track
 
 
-MPV_SOCKET = "/tmp/ytmusic-mpv.sock"
+_thread_pool = ThreadPoolExecutor(max_workers=THREAD_POOL_WORKERS)
 
 
 class Player:
     """Audio player using mpv with IPC control."""
-    
+
     def __init__(self):
         self._proc: Optional[subprocess.Popen] = None
-        self._lock = threading.Lock()
-        self._paused = False
+        self._lock: threading.Lock = threading.Lock()
+        self._paused: bool = False
         self._current: Optional[Track] = None
-        self._pos_running = False
+        self._pos_running: bool = False
         self.position: float = 0.0
         self.duration: float = 0.0
         self.on_finish: Optional[Callable[[], None]] = None
@@ -46,15 +56,27 @@ class Player:
         self.position = 0.0
         self.duration = 0.0
         with self._lock:
+            cmd = ["mpv"]
+            if MPV_NO_VIDEO:
+                cmd.append("--no-video")
+            if MPV_REALLY_QUIET:
+                cmd.append("--really-quiet")
+            cmd.extend(
+                [
+                    f"--term-osd={MPV_TERM_OSD}",
+                    f"--volume={MPV_VOLUME}",
+                    f"--input-ipc-server={MPV_SOCKET}",
+                    track.url,
+                ]
+            )
             self._proc = subprocess.Popen(
-                ["mpv", "--no-video", "--really-quiet", "--term-osd=no",
-                 "--volume=80", f"--input-ipc-server={MPV_SOCKET}", track.url],
+                cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
         self._pos_running = True
-        threading.Thread(target=self._monitor, daemon=True).start()
-        threading.Thread(target=self._poll, daemon=True).start()
+        _thread_pool.submit(self._monitor)
+        _thread_pool.submit(self._poll)
 
     def _stop_proc(self) -> None:
         """Stop the current mpv process."""
@@ -91,7 +113,7 @@ class Player:
         """Send IPC command to mpv."""
         try:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            s.settimeout(0.5)
+            s.settimeout(SOCKET_TIMEOUT)
             s.connect(MPV_SOCKET)
             s.sendall((json.dumps(cmd) + "\n").encode())
             data = s.recv(4096).decode()
@@ -109,7 +131,6 @@ class Player:
 
     def _poll(self) -> None:
         """Poll mpv for position and duration."""
-        time.sleep(2)
         while self._pos_running:
             if not self.is_playing:
                 break

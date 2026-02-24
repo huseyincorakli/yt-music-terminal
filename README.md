@@ -10,6 +10,7 @@ A beautiful terminal-based YouTube Music player for Linux.
 - 🎵 Stream audio directly from YouTube
 - 🔍 Search YouTube from within the terminal
 - 📋 Queue management system
+- 📁 Playlist management (create, delete, persist)
 - 🎨 Beautiful dark-themed UI with progress bar
 - ⌨️ Full keyboard navigation
 
@@ -51,16 +52,48 @@ ytmusic
 
 ## Keybindings
 
+### Normal Mode
 | Key | Action |
 |-----|--------|
 | `/` | Search |
 | `Enter` | Play selected |
 | `Space` | Pause / Resume |
-| `n` | Next in queue |
+| `n` | Next track |
 | `a` | Add to queue |
 | `d` | Remove from queue |
-| `Esc` | Focus results |
+| `l` | Open playlists |
+| `e` | Add to default playlist |
 | `q` | Quit |
+
+### Playlist Mode (press `l`)
+| Key | Action |
+|-----|--------|
+| `l` | Back to results |
+| `Enter` | Open playlist |
+| `n` | Create new playlist |
+| `x` | Delete playlist (press twice to confirm) |
+| `/` | Search |
+| `q` | Quit |
+
+### Playlist Tracks Mode
+| Key | Action |
+|-----|--------|
+| `l` | Back to playlists |
+| `Enter` | Play track |
+| `n` | Next track |
+| `d` | Remove from playlist |
+| `/` | Search |
+| `q` | Quit |
+
+## Configuration
+
+Configuration is stored in `~/.config/ytmusic/playlists.json`.
+
+Edit `src/ytmusic/config.py` to customize:
+- Colors
+- Key bindings
+- MPV settings
+- UI preferences
 
 ## Known Limitations
 

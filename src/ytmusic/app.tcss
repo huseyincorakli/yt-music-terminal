@@ -1,0 +1,189 @@
+Screen { background: #06060f; }
+
+#root { layout: vertical; height: 100%; }
+
+/* HEADER */
+#header {
+    height: 3;
+    background: #0c0c1e;
+    border-bottom: tall #1e1e40;
+    layout: horizontal;
+    align: left middle;
+    padding: 0 2;
+}
+#logo {
+    width: auto;
+    color: #7b7bff;
+    text-style: bold;
+    margin-right: 3;
+}
+#search-input {
+    width: 1fr; height: 1;
+    border: none;
+    background: #10101e;
+    color: #e0e0ff;
+    padding: 0 2;
+    margin: 1 0;
+}
+#search-input:focus {
+    border: none;
+    background: #18183a;
+    color: #ffffff;
+}
+
+/* MAIN */
+#main { layout: horizontal; height: 1fr; }
+
+/* RESULTS */
+#results-panel { width: 2fr; border-right: tall #161630; }
+#results-header {
+    height: 2;
+    background: #0c0c1e;
+    color: #44446a;
+    padding: 0 2;
+    content-align: left middle;
+    border-bottom: tall #131330;
+}
+#results-list {
+    height: 1fr;
+    background: #06060f;
+    scrollbar-color: #1e1e40;
+    scrollbar-background: #06060f;
+}
+#results-list > ListItem {
+    background: #06060f; height: 2; padding: 0;
+}
+#results-list > ListItem:hover { background: #0e0e20; }
+#results-list > ListItem:hover Label { color: #9090c0; }
+#results-list > ListItem.--highlight {
+    background: #10102a;
+    border-left: tall #7b7bff;
+}
+#results-list Label {
+    color: #7070a0; height: 2; content-align: left middle;
+}
+#results-list > ListItem.--highlight Label {
+    color: #d0d0ff; text-style: bold;
+}
+
+/* QUEUE */
+#queue-panel { width: 1fr; background: #050510; }
+#queue-header {
+    height: 2;
+    background: #0c0c1e;
+    color: #44446a;
+    padding: 0 2;
+    content-align: left middle;
+    border-bottom: tall #131330;
+}
+#queue-list {
+    height: 1fr;
+    background: #050510;
+    scrollbar-color: #131328;
+    scrollbar-background: #050510;
+}
+#queue-list > ListItem {
+    background: #050510; height: 2; padding: 0;
+}
+#queue-list > ListItem:hover { background: #0c0c22; }
+#queue-list > ListItem:hover Label { color: #6a6a9a; }
+#queue-list > ListItem.--highlight {
+    background: #0e0e28;
+    border-left: tall #4dff88;
+}
+#queue-list Label {
+    color: #484870; height: 2; content-align: left middle;
+}
+#queue-list > ListItem.--highlight Label {
+    color: #4dff88; text-style: bold;
+}
+
+/* PLAYLIST */
+#playlist-panel { width: 1fr; background: #050510; display: none; }
+#playlist-header {
+    height: 2;
+    background: #0c0c1e;
+    color: #44446a;
+    padding: 0 2;
+    content-align: left middle;
+    border-bottom: tall #131330;
+}
+#playlist-list {
+    height: 1fr;
+    background: #050510;
+    scrollbar-color: #131328;
+    scrollbar-background: #050510;
+}
+#playlist-list > ListItem {
+    background: #050510; height: 2; padding: 0;
+}
+#playlist-list > ListItem:hover { background: #0c0c22; }
+#playlist-list > ListItem:hover Label { color: #6a6a9a; }
+#playlist-list > ListItem.--highlight {
+    background: #0e0e28;
+    border-left: tall #ff88ff;
+}
+#playlist-list Label {
+    color: #484870; height: 2; content-align: left middle;
+}
+#playlist-list > ListItem.--highlight Label {
+    color: #ff88ff; text-style: bold;
+}
+
+#playlist-input-container {
+    height: 3;
+    background: #0c0c1e;
+    padding: 0 2;
+    layout: horizontal;
+}
+#playlist-input-container.hidden { display: none; }
+#playlist-name-input {
+    width: 1fr;
+    height: 1;
+    margin: 1 0;
+    background: #10101e;
+    color: #e0e0ff;
+    border: none;
+    padding: 0 2;
+}
+#playlist-name-input:focus {
+    background: #18183a;
+    color: #ffffff;
+}
+#playlist-input-buttons {
+    width: auto;
+    padding-left: 1;
+}
+#playlist-input-buttons Button {
+    margin-left: 1;
+}
+
+/* NOW PLAYING */
+#now-playing {
+    height: 6;
+    background: #0a0a1e;
+    border-top: tall #1e1e45;
+    layout: vertical;
+    padding: 1 2;
+}
+#np-track { height: 2; content-align: left middle; }
+#np-bar   { height: 2; content-align: left middle; }
+
+/* KEY BAR */
+#keybar {
+    height: 2;
+    background: #07070f;
+    border-top: tall #131328;
+    content-align: left middle;
+    padding: 0 2;
+}
+
+/* LOADING */
+#loading {
+    display: none;
+    height: 1fr;
+    content-align: center middle;
+    color: #5555cc;
+    text-style: italic;
+}
+#loading.visible { display: block; }
