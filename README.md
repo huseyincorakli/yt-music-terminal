@@ -2,6 +2,8 @@
 
 A beautiful terminal-based YouTube Music player for Linux.
 
+![YT Music TUI](image.png)
+
 ![YT Music TUI](https://img.shields.io/badge/Linux-Fedora-%23354d20?logo=fedora)
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue?logo=python)
 
